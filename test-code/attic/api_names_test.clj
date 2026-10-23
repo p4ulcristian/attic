@@ -16,6 +16,8 @@
            find-file
            list-files
            read-file-bytes
+           delete-file!
+           delete-unnamed-files!
            make-signed-link
            make-public-link
            make-upload-handler}

@@ -6,7 +6,7 @@ attic is groundwork's file storage (groundwork: the libraries and the composer o
 
 - [attic is its own library](2026-10-23-attic-is-its-own-library.md)
 - [A file is named by its content; an object is never written over](2026-10-23-a-file-is-named-by-its-content.md)
-- [Every file stored is a row of `attic.files`](2026-10-23-every-file-is-a-row-of-attic-files.md)
+- [Every file stored is a row of `attic.files`](2026-10-23-every-file-is-a-row-of-attic-files.md), changed in part by [A file is deleted only when no row names it](2026-10-23-a-file-is-deleted-only-when-no-row-names-it.md)
 - [The bucket through aws-api; signed links written by attic](2026-10-23-the-bucket-through-aws-api-links-signed-by-attic.md)
 - [A file's kind is told by its bytes; the caller says which kinds it takes](2026-10-23-a-files-kind-is-told-by-its-bytes.md)
 - [Uploads go through the server; the app says who may upload](2026-10-23-uploads-go-through-the-server.md)
@@ -14,3 +14,4 @@ attic is groundwork's file storage (groundwork: the libraries and the composer o
 - [The app passes its log and its meter](2026-10-23-the-app-passes-its-log-and-meter.md)
 - [The tests run against a real S3 API (SeaweedFS) and a real Postgres](2026-10-23-tests-run-against-seaweedfs-and-postgres.md)
 - [Secrets are safe's wrapped secrets](2026-10-23-secrets-are-safes-wrapped-secrets.md)
+- [A file is deleted only when no row names it; Postgres's references say so](2026-10-23-a-file-is-deleted-only-when-no-row-names-it.md)

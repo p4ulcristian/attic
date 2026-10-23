@@ -129,6 +129,14 @@
    [:after-key [:maybe :string]]
    [:limit [:int {:min 1}]]])
 
+(def delete-unnamed-options-shape
+  "delete-unnamed-files!' options, every key required.
+   :key-prefix: only the keys that start with it, \"\" for every key.
+   :page-size: how many rows are read at a time."
+  [:map {:closed true}
+   [:key-prefix :string]
+   [:page-size [:int {:min 1}]]])
+
 (defn check-data-for-shape
   "Returns the data; throws {:type kind :errors …} with every problem at
    once when it doesn't fit the shape."

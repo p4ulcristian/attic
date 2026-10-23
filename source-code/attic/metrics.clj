@@ -3,6 +3,7 @@
 
      attic_files_stored_total{outcome}        counter: files stored, new or there already
      attic_files_refused_total{reason}        counter: files refused, by why
+     attic_files_deleted_total{outcome}       counter: files asked to be deleted, by what happened
      attic_bucket_failures_total{operation}   counter: requests the bucket failed, after retries"
   (:require
    [meter.api :as meter]))
@@ -19,7 +20,14 @@
    :too-large   an upload's file larger than :max-file-bytes"
   #{:wrong-kind :too-large})
 
-(def operations #{:store :read})
+(def deletions
+  "How a delete ended:
+   :deleted      the row and the object are gone
+   :still-named  a row of the app names the file (a reference to file__key): nothing deleted
+   :not-found    no file has that key"
+  #{:deleted :still-named :not-found})
+
+(def operations #{:store :read :delete})
 
 (defn declare-metrics! [meter]
   (meter/declare-metrics!
@@ -36,6 +44,12 @@
      :labels  {:reason reasons}
      :buckets nil
      :read    nil}
+    {:name    :attic/files-deleted-total
+     :type    :counter
+     :help    "Files asked to be deleted, by what happened: deleted, kept since a row still names them, or no such file."
+     :labels  {:outcome deletions}
+     :buckets nil
+     :read    nil}
     {:name    :attic/bucket-failures-total
      :type    :counter
      :help    "Requests the bucket failed, after their retries, by operation."
@@ -48,6 +62,9 @@
 
 (defn count-refused! [meter reason]
   (meter/add-to-counter! meter :attic/files-refused-total {:reason reason} 1))
+
+(defn count-deleted! [meter outcome]
+  (meter/add-to-counter! meter :attic/files-deleted-total {:outcome outcome} 1))
 
 (defn count-bucket-failure! [meter operation]
   (meter/add-to-counter! meter :attic/bucket-failures-total {:operation operation} 1))

@@ -35,6 +35,14 @@
    A file's kind is told by its bytes (attic.kinds), never by its name or
    what the browser says; each call says which kinds it takes.
 
+   Content-named, one file may be named by many rows of the app (two
+   orders with the same PDF). A row names a file through a reference to
+   :file/key ({:references :file/key}); delete-file! deletes a file only
+   when none does (Postgres's reference refuses the row's delete, which
+   attic answers :still-named), its row and its object together. attic
+   knows no owners: a file's prefix is the app's to choose, and
+   delete-unnamed-files! deletes every file under one that no row names.
+
    attic writes to the app's log only, :log, and counts on the app's
    meter, :meter (attic.metrics)."
   (:require
@@ -57,6 +65,7 @@
 (def ^:private insert-file (make-query "insert_file.sql"))
 (def ^:private find-file-row (make-query "find_file.sql"))
 (def ^:private list-file-rows (make-query "list_files.sql"))
+(def ^:private delete-file-row (make-query "delete_file.sql"))
 
 ;; -----------------------------------------------------------------------------
 ;; Settings and the table
@@ -77,7 +86,8 @@
 
 (def files-table
   "Every file stored: attic.files, a map for cellar, to pass with the app's
-   tables. A row is never changed; no row is deleted by attic."
+   tables. A row is never changed; delete-file! deletes it with its object,
+   when no row of the app names it (a reference to :file/key)."
   {:table     :attic/files
    :columns   [[:file/key          :string       {:primary-key? true}]
                [:file/sha256       :string]
@@ -85,6 +95,8 @@
                [:file/content-type :string]
                [:file/stored-at    :time/instant {:default :now}]]
    :indexes   []
+   :references []
+   :triggers   []
    :gates     nil
    :on-change nil})
 
@@ -210,6 +222,71 @@
     (catch Exception e
       (metrics/count-bucket-failure! meter :read)
       (throw e))))
+
+(defn- is-foreign-key-violation?
+  "Whether Postgres refused because a row still points at the one deleted."
+  [^Throwable e]
+  (loop [t e]
+    (cond (nil? t) false
+          (and (instance? java.sql.SQLException t) (= "23503" (.getSQLState ^java.sql.SQLException t))) true
+          :else (recur (.getCause t)))))
+
+(defn- delete-row-and-object!
+  "In one transaction: the row deleted (Postgres refuses while a row
+   names it), then the object; kept only if both went."
+  [{:keys [settings client meter]} pool object-key]
+  (cellar/run-in-transaction! pool {:read-only? false}
+                              (fn [transaction]
+                                (when-let [row (cellar/find-one-row transaction delete-file-row {:file/key object-key})]
+                                  (try (bucket/delete-object! client (:bucket settings) object-key)
+                                       (catch Exception e
+                                         (metrics/count-bucket-failure! meter :delete)
+                                         (throw e)))
+                                  row))))
+
+(defn delete-file!
+  "Deletes a file: its row and its object, on a pool, in a transaction of
+   its own (an object deleted can't come back with a rollback, so a
+   transaction handed in is refused, :attic/needs-a-pool: delete after the
+   app's own rows are kept). Only when no row of the app names it through
+   a reference to :file/key: then nothing is deleted. Returns :deleted,
+   :still-named or :not-found; counted (attic_files_deleted_total), a
+   deletion written to the log (:info :attic/file-deleted). The object is
+   deleted before the row's delete is kept: a file stored again at once
+   puts its bytes anew; a failed commit after it leaves a row without its
+   object, which read-file-bytes answers nil. The bucket's failure throws
+   :attic/bucket-failed, the row kept."
+  [{:keys [log meter] :as attic} pool object-key]
+  (when (cellar/is-transaction? pool)
+    (throw (ex-info "delete-file! runs in a transaction of its own: hand it the pool, after the app's transaction is kept"
+                    {:type :attic/needs-a-pool :object-key object-key})))
+  (let [outcome (try
+                  (if-let [row (delete-row-and-object! attic pool object-key)]
+                    (do (log :info :attic/file-deleted {:attic/key object-key :attic/size (:file/size row)})
+                        :deleted)
+                    :not-found)
+                  (catch Exception e
+                    (if (is-foreign-key-violation? e) :still-named (throw e))))]
+    (metrics/count-deleted! meter outcome)
+    outcome))
+
+(defn delete-unnamed-files!
+  "Deletes every file under a prefix that no row of the app names
+   (delete-file! each, a page at a time): for a background job after the
+   app deletes its rows. Options, every key required: :key-prefix (\"\"
+   for all), :page-size. Returns {:deleted n :still-named n}."
+  [attic pool options]
+  (let [{:keys [key-prefix page-size]}
+        (settings/check-data-for-shape "The options" :attic/bad-options settings/delete-unnamed-options-shape options)]
+    (loop [after-key nil counts {:deleted 0 :still-named 0}]
+      (let [rows (cellar/find-rows pool list-file-rows {:key-prefix key-prefix :after-key after-key :limit page-size})
+            counts (reduce (fn [counts {:file/keys [key]}]
+                             (let [outcome (delete-file! attic pool key)]
+                               (if (contains? counts outcome) (update counts outcome inc) counts)))
+                           counts rows)]
+        (if (< (count rows) page-size)
+          counts
+          (recur (:file/key (peek rows)) counts))))))
 
 (defn make-signed-link
   "A link that reads the file for the settings' :link-expiry-seconds,

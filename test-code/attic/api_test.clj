@@ -296,3 +296,76 @@
         (finally
           (attic/stop-attic! a)
           (cellar/stop-pool! pool))))))
+
+;; -----------------------------------------------------------------------------
+;; Deleting
+
+(def ^:private orders
+  "An app's table whose rows name a file, through a reference to :file/key."
+  {:table      :orders
+   :columns    [[:order/id :int {:primary-key? true}]
+                [:order/invoice-key :string {:references :file/key}]]
+   :indexes    [[:order/invoice-key]]
+   :references []
+   :triggers   []
+   :gates      nil
+   :on-change  nil})
+
+(defn- run-sql! [pool text] (cellar/run-statement! pool (cellar/make-query-from-sql-text "test" text) {}))
+
+(deftest deleting-files-in-a-real-bucket
+  (if-not (and s3-endpoint pg-port)
+    (println "attic.api-test: the delete tests skipped, ATTIC_TEST_S3_ENDPOINT or ATTIC_TEST_PG_PORT is not set")
+    (let [pool (make-pool)
+          a    (attic/make-attic (make-settings 60) {:log log :meter (make-meter)})
+          pdf? {:key-prefix "invoices" :allowed-content-types #{"application/pdf"} :file-name nil}]
+      (try
+        (run-sql! pool "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public")
+        (make-tables-afresh! pool)
+        @(:slow-part (cellar/migrate! pool [attic/files-table orders] []
+                                      {:instant-part {:statement-timeout-ms 5000 :lock-timeout-ms 5000}
+                                       :slow-part    {:statement-timeout-ms :none :lock-timeout-ms 5000}
+                                       :log          (fn [_ _ _])}))
+        (make-bucket-afresh! (make-settings 60))
+        (let [key (:file/key (attic/store-file! a pool pdf pdf?))]
+          (run-sql! pool (str "INSERT INTO orders VALUES (1, '" key "'), (2, '" key "')"))
+          (testing "a file two rows name, one content for two orders, is kept while either names it"
+            (is (= :still-named (attic/delete-file! a pool key)))
+            (run-sql! pool "DELETE FROM orders WHERE order__id = 1")
+            (is (= :still-named (attic/delete-file! a pool key)))
+            (is (some? (attic/find-file pool key)))
+            (is (= (seq pdf) (seq (attic/read-file-bytes a key))) "the object stays with its row"))
+          (testing "named by none: its row and its object go"
+            (run-sql! pool "DELETE FROM orders")
+            (reset! lines [])
+            (is (= :deleted (attic/delete-file! a pool key)))
+            (is (nil? (attic/find-file pool key)))
+            (is (nil? (attic/read-file-bytes a key)))
+            (is (= [["info" "attic/file-deleted" key]]
+                   (map (juxt #(get % "level") #(get % "event") #(get-in % ["data" "attic/key"])) @lines))))
+          (testing "a key no file has"
+            (is (= :not-found (attic/delete-file! a pool key))))
+          (testing "the same bytes stored again are put anew"
+            (is (= key (:file/key (attic/store-file! a pool pdf pdf?))))
+            (is (= (seq pdf) (seq (attic/read-file-bytes a key)))))
+          (testing "a transaction is refused: a deleted object can't come back with a rollback"
+            (is (= :attic/needs-a-pool
+                   (:type (ex-data (try (cellar/run-in-transaction! pool {:read-only? false} #(attic/delete-file! a % key))
+                                        (catch Exception e e)))))))
+          (testing "every file under a prefix that no row names, a page at a time"
+            (let [named (:file/key (attic/store-file! a pool png {:key-prefix "invoices" :allowed-content-types #{"image/png"} :file-name nil}))]
+              (attic/store-file! a pool (byte-array (concat (seq png) [7])) {:key-prefix "invoices" :allowed-content-types #{"image/png"} :file-name nil})
+              (attic/store-file! a pool png {:key-prefix "elsewhere" :allowed-content-types #{"image/png"} :file-name nil})
+              (run-sql! pool (str "INSERT INTO orders VALUES (3, '" named "')"))
+              (is (= {:deleted 2 :still-named 1} (attic/delete-unnamed-files! a pool {:key-prefix "invoices/" :page-size 1})))
+              (is (= [named] (map :file/key (attic/list-files pool {:key-prefix "invoices/" :after-key nil :limit 10}))))
+              (is (= 1 (count (attic/list-files pool {:key-prefix "elsewhere/" :after-key nil :limit 10}))) "another prefix is left")))
+          (testing "counted by outcome"
+            (is (= {"attic_files_deleted_total{outcome=\"deleted\"}"     3.0
+                    "attic_files_deleted_total{outcome=\"still-named\"}" 3.0
+                    "attic_files_deleted_total{outcome=\"not-found\"}"   1.0}
+                   (read-counter a "attic_files_deleted_total")))))
+        (finally
+          (run-sql! pool "DROP TABLE IF EXISTS public.orders")
+          (attic/stop-attic! a)
+          (cellar/stop-pool! pool))))))

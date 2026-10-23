@@ -5,7 +5,7 @@
    aws-api's own http client has a fixed connect timeout (10 s) and no
    request timeout; attic hands it one of its own, java.net.http's with the
    settings' two timeouts, which sends through aws-api's java.net.http
-   submit. A request the bucket was too busy for (aws-api's own rule), or
+   submit. An object is put once, read, or deleted. A request the bucket was too busy for (aws-api's own rule), or
    that never connected (nothing was sent, so sending again is safe), is
    retried by the settings' :retries."
   (:require
@@ -123,6 +123,15 @@
         (throw-failure "read" object-key failure))
       (with-open [in ^InputStream (:Body answer)]
         (.readAllBytes in)))))
+
+(defn delete-object!
+  "Deletes the object at the key; the bucket says the same whether it had
+   one or not. Throws :attic/bucket-failed."
+  [client bucket object-key]
+  (let [answer (aws/invoke client {:op :DeleteObject :request {:Bucket bucket :Key object-key}})]
+    (when-let [failure (find-failure answer)]
+      (throw-failure "delete" object-key failure))
+    :deleted))
 
 (defn stop-client! [client]
   (aws/stop client))

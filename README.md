@@ -28,6 +28,7 @@ namespace, `attic.api`.
 | `store-file!` `known-content-types` | stores bytes under their content's key and records them, on a pool or in a transaction; `{:key-prefix :allowed-content-types :file-name}`; the row |
 | `find-file` `list-files` | a file's row by key; the rows by prefix, after a key, at most a limit |
 | `read-file-bytes` | a file's bytes from the bucket |
+| `delete-file!` `delete-unnamed-files!` | a file's row and object deleted, on a pool, only when no row of the app names it (a reference to `:file/key`): `:deleted`, `:still-named` or `:not-found`; every file under a prefix no row names |
 | `make-signed-link` `make-public-link` | a link that reads the file for `:link-expiry-seconds`; its address under `:public-url` |
 | `make-upload-handler` `upload-settings-shape` | a Ring handler for a multipart upload, one part per file, after the app's `:may-upload?` |
 
@@ -100,8 +101,14 @@ and an object whose row was rolled back is found again by the same bytes
 
 `make-attic` declares, on the app's meter: `attic_files_stored_total{outcome}`
 (`stored`, `already-stored`), `attic_files_refused_total{reason}`
-(`wrong-kind`, `too-large`), `attic_bucket_failures_total{operation}`
-(`store`, `read`).
+(`wrong-kind`, `too-large`), `attic_files_deleted_total{outcome}`
+(`deleted`, `still-named`, `not-found`), `attic_bucket_failures_total{operation}`
+(`store`, `read`, `delete`).
+
+A file is deleted, row and object, only when no row of the app names it
+through a reference to `:file/key`; Postgres refuses the delete otherwise,
+and nothing goes. `delete-file!` runs on a pool, after the app's own rows
+are kept ([why](decisions/2026-10-23-a-file-is-deleted-only-when-no-row-names-it.md)).
 
 Every setting and option is required: a missing or unknown one is
 refused, named, with every other problem at once, before anything runs.
