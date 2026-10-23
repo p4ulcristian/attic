@@ -17,6 +17,7 @@
            list-files
            read-file-bytes
            delete-file!
+           delete-file-after-commit!
            delete-unnamed-files!
            make-signed-link
            make-public-link

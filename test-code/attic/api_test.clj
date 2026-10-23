@@ -355,6 +355,23 @@
             (is (= :attic/needs-a-pool
                    (:type (ex-data (try (cellar/run-in-transaction! pool {:read-only? false} #(attic/delete-file! a % key))
                                         (catch Exception e e)))))))
+          (testing "kept for after the app's transaction: never after a rollback, deleted after a commit"
+            (run-sql! pool (str "INSERT INTO orders VALUES (5, '" key "')"))
+            (is (thrown? clojure.lang.ExceptionInfo
+                         (cellar/run-in-transaction! pool {:read-only? false}
+                           (fn [transaction]
+                             (cellar/run-statement! transaction (cellar/make-query-from-sql-text "test" "DELETE FROM orders WHERE order__id = 5") {})
+                             (is (nil? (attic/delete-file-after-commit! a pool transaction key)))
+                             (throw (ex-info "undo" {}))))))
+            (is (some? (attic/find-file pool key)) "rolled back: the row and the file stay")
+            (cellar/run-in-transaction! pool {:read-only? false}
+              (fn [transaction]
+                (cellar/run-statement! transaction (cellar/make-query-from-sql-text "test" "DELETE FROM orders WHERE order__id = 5") {})
+                (attic/delete-file-after-commit! a pool transaction key)
+                (is (some? (attic/find-file transaction key)) "not before the commit")))
+            (is (nil? (attic/find-file pool key)) "its row and its object gone after the commit")
+            (is (nil? (attic/read-file-bytes a key)))
+            (is (= key (:file/key (attic/store-file! a pool pdf pdf?))) "stored again for the tests below"))
           (testing "every file under a prefix that no row names, a page at a time"
             (let [named (:file/key (attic/store-file! a pool png {:key-prefix "invoices" :allowed-content-types #{"image/png"} :file-name nil}))]
               (attic/store-file! a pool (byte-array (concat (seq png) [7])) {:key-prefix "invoices" :allowed-content-types #{"image/png"} :file-name nil})
@@ -364,7 +381,7 @@
               (is (= [named] (map :file/key (attic/list-files pool {:key-prefix "invoices/" :after-key nil :limit 10}))))
               (is (= 1 (count (attic/list-files pool {:key-prefix "elsewhere/" :after-key nil :limit 10}))) "another prefix is left")))
           (testing "counted by outcome"
-            (is (= {"attic_files_deleted_total{outcome=\"deleted\"}"     3.0
+            (is (= {"attic_files_deleted_total{outcome=\"deleted\"}"     4.0
                     "attic_files_deleted_total{outcome=\"still-named\"}" 3.0
                     "attic_files_deleted_total{outcome=\"not-found\"}"   1.0}
                    (read-counter a "attic_files_deleted_total")))))

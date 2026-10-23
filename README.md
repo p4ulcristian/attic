@@ -29,6 +29,7 @@ namespace, `attic.api`.
 | `find-file` `list-files` | a file's row by key; the rows by prefix, after a key, at most a limit |
 | `read-file-bytes` | a file's bytes from the bucket |
 | `delete-file!` `delete-unnamed-files!` | a file's row and object deleted, on a pool, only when no row of the app names it (a reference to `:file/key`): `:deleted`, `:still-named` or `:not-found`; every file under a prefix no row names |
+| `delete-file-after-commit!` | `delete-file!` on the pool kept for once the app's transaction commits (cellar's `run-after-commit!`), never after a rollback; nil back, the outcome counted and logged then |
 | `make-signed-link` `make-public-link` | a link that reads the file for `:link-expiry-seconds`; its address under `:public-url` |
 | `make-upload-handler` `upload-settings-shape` | a Ring handler for a multipart upload, one part per file, after the app's `:may-upload?` |
 
@@ -109,7 +110,13 @@ and an object whose row was rolled back is found again by the same bytes
 A file is deleted, row and object, only when no row of the app names it
 through a reference to `:file/key`; Postgres refuses the delete otherwise,
 and nothing goes. `delete-file!` runs on a pool, after the app's own rows
-are kept ([why](decisions/2026-10-23-a-file-is-deleted-only-when-no-row-names-it.md)).
+are kept ([why](decisions/2026-10-23-a-file-is-deleted-only-when-no-row-names-it.md));
+`delete-file-after-commit!` keeps it, on the pool, for once the app's
+transaction commits (cellar's `run-after-commit!`; never after a
+rollback), so a handler that deletes the rows naming a file deletes the
+file in the same step: `(attic/delete-file-after-commit! attic pool
+transaction key)`, nil back, the outcome counted and logged later
+([cellar's why](https://github.com/p4ulcristian/cellar/blob/tidy-up/decisions/2026-10-23-a-transaction-keeps-work-to-run-after-its-commit.md)).
 
 Every setting and option is required: a missing or unknown one is
 refused, named, with every other problem at once, before anything runs.

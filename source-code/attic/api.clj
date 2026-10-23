@@ -262,7 +262,8 @@
    :attic/bucket-failed, the row kept."
   [{:keys [log meter] :as attic} pool object-key]
   (when (cellar/is-transaction? pool)
-    (throw (ex-info "delete-file! runs in a transaction of its own: hand it the pool, after the app's transaction is kept"
+    (throw (ex-info (str "delete-file! runs in a transaction of its own: hand it the pool, after the app's transaction is kept"
+                         " (delete-file-after-commit! keeps it for then)")
                     {:type :attic/needs-a-pool :object-key object-key})))
   (let [outcome (try
                   (if-let [row (delete-row-and-object! attic pool object-key)]
@@ -273,6 +274,23 @@
                     (if (is-foreign-key-violation? e) :still-named (throw e))))]
     (metrics/count-deleted! meter outcome)
     outcome))
+
+(defn delete-file-after-commit!
+  "Keeps delete-file! on the pool to run once the app's transaction
+   commits (cellar's run-after-commit!), so a handler deleting the rows
+   that named a file deletes the file too, after they are kept; never
+   when the transaction rolls back. Returns nil: the outcome comes later,
+   counted and logged as delete-file!'s (:still-named when a row still
+   names it), and a failure of the bucket is written to the pool's log by
+   cellar (:cellar/after-commit-failed). Lost if the process dies between
+   the commit and the delete: delete-unnamed-files! in a background job
+   finds what is left. Handed a pool for the transaction, cellar refuses,
+   :cellar/not-a-transaction.
+
+     (cellar/run-statement! transaction delete-invoice {:invoice/id id})
+     (attic/delete-file-after-commit! attic pool transaction invoice-key)"
+  [attic pool transaction object-key]
+  (cellar/run-after-commit! transaction #(delete-file! attic pool object-key)))
 
 (defn delete-unnamed-files!
   "Deletes every file under a prefix that no row of the app names
