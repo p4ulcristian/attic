@@ -14,7 +14,7 @@
   ;; a reference what it does on delete, update and when checked; migrate! takes
   ;; {:tables :extensions :functions :views}; run-after-commit!, for delete-file-after-commit!;
   ;; run-in-transaction! takes the caller's :log, where an after-commit failure is written
-  io.github.p4ulcristian/cellar  {:git/sha "4396e6bc9353b8eb614c0db7b839da537d11863e"}
+  io.github.p4ulcristian/cellar  {:git/sha "7e239c732113d162f2462bc217b3abb88a8bd208"}
   ;; the upload's answer, JSON by the wire the app makes and hands in
   io.github.p4ulcristian/wire    {:git/tag "v0.2.0" :git/sha "d66b7cb"}
   ;; the app's log, handed in
