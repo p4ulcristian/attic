@@ -8,7 +8,7 @@ through a signed link that expires, or a public address; an upload goes
 through the server, each file checked by its bytes before it is stored.
 
 ```clojure
-io.github.p4ulcristian/attic {:git/tag "v0.1.2" :git/sha "bc24982"}
+io.github.p4ulcristian/attic {:git/tag "v0.1.3" :git/sha "15183ab"}
 ```
 
 Needs [cellar](https://github.com/p4ulcristian/cellar) (the files table),
