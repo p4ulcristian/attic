@@ -1,9 +1,9 @@
-(ns attic.upload
+(ns groundwork-file-storage.upload
   "Uploads through the server: a Ring handler for a multipart POST, one
    part per file. Who may upload is asked first, before the body is read;
    then each part is read, at most :max-file-bytes of it, its kind told by
-   its bytes, and stored (attic.api's store-file!, every row in one
-   transaction). The answer, JSON by the app's wire:
+   its bytes, and stored (groundwork-file-storage.api's store-file!, every row in one
+   transaction). The answer, JSON by the app's shaper:
 
      200 {\"stored\":   [{\"field\":\"photo\",\"file-name\":\"door.png\",\"key\":\"orders/photos/….png\",
                          \"sha256\":\"…\",\"size\":48213,\"content-type\":\"image/png\"}],
@@ -14,17 +14,17 @@
    whole request, nothing stored: 403 when the app's :may-upload? says no,
    400 for a body that isn't multipart/form-data or can't be read, 413 for
    more parts than :max-files, 503 when the bucket or the database
-   failed (written to the log, :attic/upload-failed). Never cached."
+   failed (written to the log, :groundwork-file-storage/upload-failed). Never cached."
   (:require
    [ring.middleware.multipart-params :as multipart]
-   [wire.api :as wire])
+   [groundwork-shaped-json.api :as shaped-json])
   (:import
    (java.io ByteArrayOutputStream InputStream)))
 
-(defn- answer [wire status data]
+(defn- answer [shaper status data]
   {:status  status
    :headers {"content-type" "application/json" "cache-control" "no-store"}
-   :body    (wire/turn-data-into-json-text wire data)})
+   :body    (shaped-json/turn-data-into-json-text shaper data)})
 
 (defn- read-at-most
   "The stream's bytes, or :too-large when it holds more than max-bytes;
@@ -45,8 +45,8 @@
   "ring's :store for a file part: its name and its bytes, or :too-large."
   [max-file-bytes]
   (fn [{:keys [filename stream]}]
-    {:attic/file-name filename
-     :attic/bytes     (read-at-most stream max-file-bytes)}))
+    {:groundwork-file-storage/file-name filename
+     :groundwork-file-storage/bytes     (read-at-most stream max-file-bytes)}))
 
 (defn- list-parts
   "Every part as [field value], in order, a field holding several parts
@@ -75,23 +75,23 @@
   [[field part]]
   (cond
     (not (map? part))                       {:rejected {:field field :file-name nil :reason :not-a-file}}
-    (= :too-large (:attic/bytes part))      {:rejected {:field field :file-name (:attic/file-name part) :reason :too-large}}
-    :else                                   {:to-store {:field field :file-name (:attic/file-name part) :bytes (:attic/bytes part)}}))
+    (= :too-large (:groundwork-file-storage/bytes part))      {:rejected {:field field :file-name (:groundwork-file-storage/file-name part) :reason :too-large}}
+    :else                                   {:to-store {:field field :file-name (:groundwork-file-storage/file-name part) :bytes (:groundwork-file-storage/bytes part)}}))
 
 (defn make-upload-handler
   "The Ring handler (see the namespace). store-part! is
    (fn [transaction {:keys [field file-name bytes]}]) → the file's row, or
    :wrong-kind; run-in-transaction! is (fn [f]); log and count-refused!
-   are attic's."
-  [{:keys [wire may-upload? log run-in-transaction! store-part! count-refused! max-files] :as upload}]
+   are groundwork-file-storage's."
+  [{:keys [shaper may-upload? log run-in-transaction! store-part! count-refused! max-files] :as upload}]
   (fn [request]
     (if-not (may-upload? request)
-      (answer wire 403 {:error "Not allowed."})
+      (answer shaper 403 {:error "Not allowed."})
       (let [parts (read-parts request upload)]
         (case parts
-          :not-multipart  (answer wire 400 {:error "Send the files as multipart/form-data, one part per file."})
-          :unreadable     (answer wire 400 {:error "The body couldn't be read as multipart/form-data."})
-          :too-many-files (answer wire 413 {:error (str "Too many files: at most " max-files " in one upload.")})
+          :not-multipart  (answer shaper 400 {:error "Send the files as multipart/form-data, one part per file."})
+          :unreadable     (answer shaper 400 {:error "The body couldn't be read as multipart/form-data."})
+          :too-many-files (answer shaper 413 {:error (str "Too many files: at most " max-files " in one upload.")})
           (let [sorted   (map sort-part parts)
                 rejected (keep :rejected sorted)]
             (doseq [{:keys [reason]} rejected :when (= :too-large reason)] (count-refused! :too-large))
@@ -109,8 +109,8 @@
                                                      :size         (:file/size row)
                                                      :content-type (:file/content-type row)}})))
                                      (keep :to-store sorted))))]
-                (answer wire 200 {:stored   (vec (keep :stored results))
+                (answer shaper 200 {:stored   (vec (keep :stored results))
                                   :rejected (into (vec rejected) (keep :rejected results))}))
               (catch Exception e
-                (log :error :attic/upload-failed {:error e})
-                (answer wire 503 {:error "The files couldn't be stored; none of this upload's were recorded."})))))))))
+                (log :error :groundwork-file-storage/upload-failed {:error e})
+                (answer shaper 503 {:error "The files couldn't be stored; none of this upload's were recorded."})))))))))

@@ -1,4 +1,4 @@
-(ns attic.links
+(ns groundwork-file-storage.links
   "Links a browser reads a file through.
 
    A signed link: an S3 GET with SigV4's query-string signature, written
@@ -11,7 +11,7 @@
    CDN in front of it) every browser may read."
   (:require
    [clojure.string :as str]
-   [safe.api :as safe])
+   [groundwork-settings.api :as settings])
   (:import
    (java.net URI)
    (java.nio.charset StandardCharsets)
@@ -70,7 +70,7 @@
         scope        (str day "/" region "/s3/aws4_request")
         path         (str "/" (encode-for-uri bucket false) "/" (encode-for-uri object-key true))
         query        (->> {"X-Amz-Algorithm"     "AWS4-HMAC-SHA256"
-                           "X-Amz-Credential"    (str (safe/reveal access-key) "/" scope)
+                           "X-Amz-Credential"    (str (settings/reveal access-key) "/" scope)
                            "X-Amz-Date"          amz-date
                            "X-Amz-Expires"       (str link-expiry-seconds)
                            "X-Amz-SignedHeaders" "host"}
@@ -80,7 +80,7 @@
                           (str/join "&"))
         canonical    (str/join "\n" ["GET" path query (str "host:" host "\n") "host" "UNSIGNED-PAYLOAD"])
         to-sign      (str/join "\n" ["AWS4-HMAC-SHA256" amz-date scope (hash-text canonical)])
-        signature    (turn-bytes-into-hex (hmac-sha256 (make-signing-key (safe/reveal secret-key) day region) to-sign))]
+        signature    (turn-bytes-into-hex (hmac-sha256 (make-signing-key (settings/reveal secret-key) day region) to-sign))]
     (str (.getScheme uri) "://" host path "?" query "&X-Amz-Signature=" signature)))
 
 (defn make-public-link
@@ -88,6 +88,6 @@
    have no :public-url."
   [{:keys [public-url]} object-key]
   (when-not public-url
-    (throw (ex-info "This attic has no :public-url: its files are read through signed links (make-signed-link)"
-                    {:type :attic/no-public-url :object-key object-key})))
+    (throw (ex-info "This file storage has no :public-url: its files are read through signed links (make-signed-link)"
+                    {:type :groundwork-file-storage/no-public-url :object-key object-key})))
   (str public-url "/" (encode-for-uri object-key true)))

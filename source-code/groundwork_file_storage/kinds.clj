@@ -1,7 +1,7 @@
-(ns attic.kinds
+(ns groundwork-file-storage.kinds
   "What kind of file some bytes are, from the bytes, never from what the
    browser says: the first bytes every format of its kind starts with.
-   Markup (SVG, HTML) is no kind attic knows: a file a browser could run
+   Markup (SVG, HTML) is no kind groundwork-file-storage knows: a file a browser could run
    is never stored to be shown."
   (:require
    [clojure.string :as str])
@@ -10,7 +10,7 @@
    (java.util Arrays)))
 
 (def extensions-of-content-types
-  "Every content type attic tells by its bytes, and the extension its
+  "Every content type groundwork-file-storage tells by its bytes, and the extension its
    files' keys end with."
   {"image/png"          "png"
    "image/jpeg"         "jpg"

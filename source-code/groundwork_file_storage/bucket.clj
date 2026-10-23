@@ -1,9 +1,9 @@
-(ns attic.bucket
+(ns groundwork-file-storage.bucket
   "The bucket, through cognitect's aws-api (S3 only): a client from the
    settings, an object put once and never written over, an object read.
 
    aws-api's own http client has a fixed connect timeout (10 s) and no
-   request timeout; attic hands it one of its own, java.net.http's with the
+   request timeout; groundwork-file-storage hands it one of its own, java.net.http's with the
    settings' two timeouts, which sends through aws-api's java.net.http
    submit. An object is put once, read, or deleted. A request the bucket was too busy for (aws-api's own rule), or
    that never connected (nothing was sent, so sending again is safe), is
@@ -15,7 +15,7 @@
    [cognitect.aws.http :as aws-http]
    [cognitect.aws.http.java :as aws-http-java]
    [cognitect.aws.retry :as retry]
-   [safe.api :as safe])
+   [groundwork-settings.api :as groundwork-settings])
   (:import
    (java.io InputStream)
    (java.net ConnectException URI)
@@ -65,7 +65,7 @@
   [region]
   (when-not (endpoint/resolve :s3 (keyword region))
     (throw (ex-info (str "The region " (pr-str region) " is one aws-api doesn't know: write one it does (R2 checks no region: \"us-east-1\")")
-                    {:type :attic/bad-settings :errors {:region ["should be a region aws-api knows"]}}))))
+                    {:type :groundwork-file-storage/bad-settings :errors {:region ["should be a region aws-api knows"]}}))))
 
 (defn make-client
   "aws-api's S3 client from the settings."
@@ -75,7 +75,7 @@
                :region               region
                :endpoint-override    (turn-endpoint-into-parts endpoint)
                :credentials-provider (credentials/basic-credentials-provider
-                                      {:access-key-id (safe/reveal access-key) :secret-access-key (safe/reveal secret-key)})
+                                      {:access-key-id (groundwork-settings/reveal access-key) :secret-access-key (groundwork-settings/reveal secret-key)})
                :http-client          (make-http-client settings)
                :retriable?           is-retriable?
                :backoff              (retry/capped-exponential-backoff first-wait-ms max-wait-ms max-retries)}))
@@ -92,12 +92,12 @@
 
 (defn- throw-failure [what object-key failure]
   (throw (ex-info (str "The bucket couldn't " what " " object-key ": " (pr-str failure))
-                  (assoc failure :type :attic/bucket-failed :object-key object-key))))
+                  (assoc failure :type :groundwork-file-storage/bucket-failed :object-key object-key))))
 
 (defn put-object-once!
   "Puts the bytes at the key unless the bucket has an object there
    (If-None-Match: *, so an object is never written over). Returns :put,
-   or :there-already; throws :attic/bucket-failed."
+   or :there-already; throws :groundwork-file-storage/bucket-failed."
   [client bucket object-key ^bytes bs content-type]
   (let [answer (aws/invoke client {:op      :PutObject
                                    :request {:Bucket        bucket
@@ -114,7 +114,7 @@
 
 (defn read-object-bytes
   "The object's bytes, or nil when the bucket has no object at the key;
-   throws :attic/bucket-failed."
+   throws :groundwork-file-storage/bucket-failed."
   [client bucket object-key]
   (let [answer (aws/invoke client {:op :GetObject :request {:Bucket bucket :Key object-key}})]
     (if-let [failure (find-failure answer)]
@@ -126,7 +126,7 @@
 
 (defn delete-object!
   "Deletes the object at the key; the bucket says the same whether it had
-   one or not. Throws :attic/bucket-failed."
+   one or not. Throws :groundwork-file-storage/bucket-failed."
   [client bucket object-key]
   (let [answer (aws/invoke client {:op :DeleteObject :request {:Bucket bucket :Key object-key}})]
     (when-let [failure (find-failure answer)]
