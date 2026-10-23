@@ -14,6 +14,7 @@
    [jsonista.core :as json]
    [logbook.api :as logbook]
    [meter.api :as meter]
+   [safe.api :as safe]
    [wire.api :as wire])
   (:import
    (java.io ByteArrayInputStream ByteArrayOutputStream)
@@ -43,8 +44,8 @@
 (defn- make-settings [link-expiry-seconds]
   {:endpoint            (or s3-endpoint "http://127.0.0.1:1")
    :bucket              "attic-test"
-   :access-key          (or (System/getenv "ATTIC_TEST_S3_ACCESS_KEY") "key")
-   :secret-key          (or (System/getenv "ATTIC_TEST_S3_SECRET_KEY") "secret")
+   :access-key          (safe/make-secret :attic/access-key (or (System/getenv "ATTIC_TEST_S3_ACCESS_KEY") "key"))
+   :secret-key          (safe/make-secret :attic/secret-key (or (System/getenv "ATTIC_TEST_S3_SECRET_KEY") "secret"))
    :region              "us-east-1"
    :public-url          "https://files.shop.example"
    :link-expiry-seconds link-expiry-seconds
@@ -83,6 +84,14 @@
          (:type (ex-data (try (attic/make-attic (assoc (make-settings 60) :region "auto") {:log log :meter (make-meter)})
                               (catch Exception e e)))))
       "a region aws-api has no endpoint for is refused at the start")
+  (testing "the bucket's key is two secrets: written out as text, each is refused, and the text is never said"
+    (let [refused (ex-data (try (attic/make-attic (assoc (make-settings 60) :access-key "written-out-access" :secret-key "written-out-secret")
+                                                  {:log log :meter (make-meter)})
+                                (catch Exception e e)))]
+      (is (= {:access-key ["should be a #secret, read from the settings' secrets source"]
+              :secret-key ["should be a #secret, read from the settings' secrets source"]}
+             (:errors refused)))
+      (is (not (re-find #"written-out" (pr-str refused))))))
   (is (= {:key-prefix ["should have no . or .. segment"]}
          (:errors (ex-data (try (attic/store-file! nil nil png {:key-prefix "a/../b" :allowed-content-types #{"image/png"} :file-name nil})
                                 (catch Exception e e)))))))
@@ -92,6 +101,8 @@
         link (attic/make-signed-link a "orders/a b.png")]
     (is (str/includes? link "/attic-test/orders/a%20b.png?"))
     (is (str/includes? link "X-Amz-Expires=300"))
+    (is (str/includes? link (str "X-Amz-Credential=" (or (System/getenv "ATTIC_TEST_S3_ACCESS_KEY") "key") "%2F"))
+        "the access key, revealed, names the key that signed")
     (is (re-find #"X-Amz-Signature=[0-9a-f]{64}$" link))
     (is (= "https://files.shop.example/orders/a%20b.png" (attic/make-public-link a "orders/a b.png")))
     (is (= :attic/no-public-url
@@ -129,7 +140,7 @@
         client (aws/client {:api :s3 :region "us-east-1"
                             :endpoint-override {:protocol (keyword (.getScheme uri)) :hostname (.getHost uri) :port (.getPort uri)}
                             :credentials-provider (credentials/basic-credentials-provider
-                                                   {:access-key-id access-key :secret-access-key secret-key})})]
+                                                   {:access-key-id (safe/reveal access-key) :secret-access-key (safe/reveal secret-key)})})]
     (aws/invoke client {:op :CreateBucket :request {:Bucket bucket}})
     (doseq [{:keys [Key]} (:Contents (aws/invoke client {:op :ListObjectsV2 :request {:Bucket bucket}}))]
       (aws/invoke client {:op :DeleteObject :request {:Bucket bucket :Key Key}}))

@@ -5,7 +5,7 @@
      (def attic (attic/make-attic {:endpoint            \"https://<account>.r2.cloudflarestorage.com\"
                                    :bucket              \"shop-files\"
                                    :access-key          access-key
-                                   :secret-key          secret-key
+                                   :secret-key          secret-key        ; both safe's secrets
                                    :region              \"us-east-1\"     ; R2 checks none
                                    :public-url          nil               ; a private bucket
                                    :link-expiry-seconds 300

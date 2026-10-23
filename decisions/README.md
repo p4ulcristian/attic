@@ -10,6 +10,7 @@ attic is manor's file storage (manor: house and the libraries it puts together).
 - [The bucket through aws-api; signed links written by attic](2026-10-23-the-bucket-through-aws-api-links-signed-by-attic.md)
 - [A file's kind is told by its bytes; the caller says which kinds it takes](2026-10-23-a-files-kind-is-told-by-its-bytes.md)
 - [Uploads go through the server; the app says who may upload](2026-10-23-uploads-go-through-the-server.md)
-- [Every value that sets behaviour is a setting; no hidden defaults](2026-10-23-every-value-that-sets-behaviour-is-a-setting.md)
+- [Every value that sets behaviour is a setting; no hidden defaults](2026-10-23-every-value-that-sets-behaviour-is-a-setting.md), changed in part by [Secrets are safe's wrapped secrets](2026-10-23-secrets-are-safes-wrapped-secrets.md)
 - [The app passes its log and its meter](2026-10-23-the-app-passes-its-log-and-meter.md)
 - [The tests run against a real S3 API (SeaweedFS) and a real Postgres](2026-10-23-tests-run-against-seaweedfs-and-postgres.md)
+- [Secrets are safe's wrapped secrets](2026-10-23-secrets-are-safes-wrapped-secrets.md)

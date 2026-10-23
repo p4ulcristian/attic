@@ -17,6 +17,8 @@
   io.github.p4ulcristian/logbook {:git/tag "v0.1.1" :git/sha "51a2c93"}
   ;; the app's meter, handed in: files stored, files refused
   io.github.p4ulcristian/meter   {:git/tag "v0.1.2" :git/sha "a0a977b"}
+  ;; the bucket's key, secrets that print as their names
+  io.github.p4ulcristian/safe    {:git/tag "v0.1.0" :git/sha "b4783eb"}
   ;; an upload's parts: ring's multipart parser
   ring/ring-core                {:mvn/version "1.15.6"}
   ;; the settings and options, checked before anything runs

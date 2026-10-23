@@ -14,7 +14,8 @@
    [cognitect.aws.endpoint :as endpoint]
    [cognitect.aws.http :as aws-http]
    [cognitect.aws.http.java :as aws-http-java]
-   [cognitect.aws.retry :as retry])
+   [cognitect.aws.retry :as retry]
+   [safe.api :as safe])
   (:import
    (java.io InputStream)
    (java.net ConnectException URI)
@@ -74,7 +75,7 @@
                :region               region
                :endpoint-override    (turn-endpoint-into-parts endpoint)
                :credentials-provider (credentials/basic-credentials-provider
-                                      {:access-key-id access-key :secret-access-key secret-key})
+                                      {:access-key-id (safe/reveal access-key) :secret-access-key (safe/reveal secret-key)})
                :http-client          (make-http-client settings)
                :retriable?           is-retriable?
                :backoff              (retry/capped-exponential-backoff first-wait-ms max-wait-ms max-retries)}))

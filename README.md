@@ -14,8 +14,9 @@ io.github.p4ulcristian/attic {:git/tag "v0.1.0" :git/sha "dfcbefb"}
 Needs [cellar](https://github.com/p4ulcristian/cellar) (the files table),
 [wire](https://github.com/p4ulcristian/wire) (the upload's answer),
 [logbook](https://github.com/p4ulcristian/logbook) and
-[meter](https://github.com/p4ulcristian/meter) (handed in), cognitect's
-aws-api (S3), ring-core (the multipart parser) and malli. One public
+[meter](https://github.com/p4ulcristian/meter) (handed in),
+[safe](https://github.com/p4ulcristian/safe) (the bucket's key is its
+secrets), cognitect's aws-api (S3), ring-core (the multipart parser) and malli. One public
 namespace, `attic.api`.
 
 ## The api
@@ -37,7 +38,7 @@ namespace, `attic.api`.
   (attic/make-attic {:endpoint            "https://<account>.r2.cloudflarestorage.com"
                      :bucket              "shop-files"
                      :access-key          access-key          ; read and write on that bucket
-                     :secret-key          secret-key
+                     :secret-key          secret-key          ; both safe's secrets: #secret :attic/access-key, :attic/secret-key
                      :region              "us-east-1"         ; R2 checks none; aws-api needs one it knows
                      :public-url          nil                 ; private: files are read through signed links
                      :link-expiry-seconds 300

@@ -7,7 +7,8 @@
   (:require
    [attic.kinds :as kinds]
    [malli.core :as malli]
-   [malli.error :as malli-error]))
+   [malli.error :as malli-error]
+   [safe.api :as safe]))
 
 (def ^:private seven-days-seconds
   "The longest a SigV4 presigned link may live: S3's limit, which R2 keeps."
@@ -20,7 +21,8 @@
    <endpoint>/<bucket>/<key>.
    :bucket: the bucket every file goes into.
    :access-key, :secret-key: a key that may read and write that bucket;
-   secrets, kept out of the code.
+   secrets of safe's (#secret :attic/access-key, #secret :attic/secret-key
+   in the app's settings file), text written out refused.
    :region: the region requests and links are signed for; one the aws-api
    knows (\"us-east-1\", \"eu-central-1\"). R2 checks no region: write
    \"us-east-1\" (aws-api has no endpoint for R2's \"auto\").
@@ -39,8 +41,8 @@
   [:map {:closed true}
    [:endpoint [:re {:error/message "should be an address starting with http:// or https://"} #"^https?://[^/]+$"]]
    [:bucket [:string {:min 1}]]
-   [:access-key [:string {:min 1}]]
-   [:secret-key [:string {:min 1}]]
+   [:access-key safe/secret]
+   [:secret-key safe/secret]
    [:region [:string {:min 1}]]
    [:public-url [:maybe [:re {:error/message "should be an address starting with http:// or https://, no / at the end"} #"^https?://.*[^/]$"]]]
    [:link-expiry-seconds [:int {:min 1 :max seven-days-seconds}]]

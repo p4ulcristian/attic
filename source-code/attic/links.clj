@@ -10,7 +10,8 @@
    A public link: the settings' :public-url and the key, for a bucket (or a
    CDN in front of it) every browser may read."
   (:require
-   [clojure.string :as str])
+   [clojure.string :as str]
+   [safe.api :as safe])
   (:import
    (java.net URI)
    (java.nio.charset StandardCharsets)
@@ -69,7 +70,7 @@
         scope        (str day "/" region "/s3/aws4_request")
         path         (str "/" (encode-for-uri bucket false) "/" (encode-for-uri object-key true))
         query        (->> {"X-Amz-Algorithm"     "AWS4-HMAC-SHA256"
-                           "X-Amz-Credential"    (str access-key "/" scope)
+                           "X-Amz-Credential"    (str (safe/reveal access-key) "/" scope)
                            "X-Amz-Date"          amz-date
                            "X-Amz-Expires"       (str link-expiry-seconds)
                            "X-Amz-SignedHeaders" "host"}
@@ -79,7 +80,7 @@
                           (str/join "&"))
         canonical    (str/join "\n" ["GET" path query (str "host:" host "\n") "host" "UNSIGNED-PAYLOAD"])
         to-sign      (str/join "\n" ["AWS4-HMAC-SHA256" amz-date scope (hash-text canonical)])
-        signature    (turn-bytes-into-hex (hmac-sha256 (make-signing-key secret-key day region) to-sign))]
+        signature    (turn-bytes-into-hex (hmac-sha256 (make-signing-key (safe/reveal secret-key) day region) to-sign))]
     (str (.getScheme uri) "://" host path "?" query "&X-Amz-Signature=" signature)))
 
 (defn make-public-link
