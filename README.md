@@ -8,7 +8,7 @@ through a signed link that expires, or a public address; an upload goes
 through the server, each file checked by its bytes before it is stored.
 
 ```clojure
-io.github.p4ulcristian/groundwork-file-storage {:git/tag "v0.1.4" :git/sha "ee84b16"}
+io.github.p4ulcristian/groundwork-file-storage {:git/tag "v0.1.5" :git/sha "eb6a725"}
 ```
 
 Needs [groundwork-postgres](https://github.com/p4ulcristian/groundwork-postgres) (the files table),
