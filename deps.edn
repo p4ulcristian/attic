@@ -14,15 +14,15 @@
   ;; a reference what it does on delete, update and when checked; migrate! takes
   ;; {:tables :extensions :functions :views}; run-after-commit!, for delete-file-after-commit!;
   ;; run-in-transaction! takes the caller's :log, where an after-commit failure is written
-  io.github.p4ulcristian/groundwork-postgres  {:git/tag "v0.4.6" :git/sha "4396e6b"}
+  io.github.p4ulcristian/groundwork-postgres  {:git/tag "v0.4.7" :git/sha "d6f226c"}
   ;; the upload's answer, JSON by the shaper the app makes and hands in
-  io.github.p4ulcristian/groundwork-shaped-json    {:git/tag "v0.2.1" :git/sha "900a84d"}
+  io.github.p4ulcristian/groundwork-shaped-json    {:git/tag "v0.2.2" :git/sha "1c0fcf9"}
   ;; the app's log, handed in
-  io.github.p4ulcristian/groundwork-logs {:git/tag "v0.1.2" :git/sha "823f8fc"}
+  io.github.p4ulcristian/groundwork-logs {:git/tag "v0.1.3" :git/sha "8d1846e"}
   ;; the app's meter, handed in: files stored, files refused
-  io.github.p4ulcristian/groundwork-metrics   {:git/tag "v0.1.4" :git/sha "bf81c46"}
+  io.github.p4ulcristian/groundwork-metrics   {:git/tag "v0.1.5" :git/sha "1cffe8e"}
   ;; the bucket's key, secrets that print as their names
-  io.github.p4ulcristian/groundwork-settings    {:git/tag "v0.1.1" :git/sha "72d0dbb"}
+  io.github.p4ulcristian/groundwork-settings    {:git/tag "v0.1.2" :git/sha "25dfbf7"}
   ;; an upload's parts: ring's multipart parser
   ring/ring-core                {:mvn/version "1.15.6"}
   ;; the settings and options, checked before anything runs
