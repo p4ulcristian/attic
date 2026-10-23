@@ -239,7 +239,8 @@
   "In one transaction: the row deleted (Postgres refuses while a row
    names it), then the object; kept only if both went."
   [{:keys [settings client meter]} pool object-key]
-  (cellar/run-in-transaction! pool {:read-only? false}
+  ;; attic's own, never handed to app code: keeps no work
+  (cellar/run-in-transaction! pool {:read-only? false :log nil}
                               (fn [transaction]
                                 (when-let [row (cellar/find-one-row transaction delete-file-row {:file/key object-key})]
                                   (try (bucket/delete-object! client (:bucket settings) object-key)
@@ -281,8 +282,9 @@
    that named a file deletes the file too, after they are kept; never
    when the transaction rolls back. Returns nil: the outcome comes later,
    counted and logged as delete-file!'s (:still-named when a row still
-   names it), and a failure of the bucket is written to the pool's log by
-   cellar (:cellar/after-commit-failed). Lost if the process dies between
+   names it), and a failure of the bucket is written by cellar to the log
+   the app's transaction carries (cellar's :log, a message's with its
+   request id), :cellar/after-commit-failed. Lost if the process dies between
    the commit and the delete: delete-unnamed-files! in a background job
    finds what is left. Handed a pool for the transaction, cellar refuses,
    :cellar/not-a-transaction.
@@ -346,7 +348,8 @@
             :may-upload?         may-upload?
             :log                 (:log attic)
             :count-refused!      #(metrics/count-refused! (:meter attic) %)
-            :run-in-transaction! #(cellar/run-in-transaction! pool {:read-only? false} %)
+            ;; attic's own, never handed to app code: keeps no work
+            :run-in-transaction! #(cellar/run-in-transaction! pool {:read-only? false :log nil} %)
             :store-part!         (fn [transaction {:keys [file-name bytes]}]
                                    (store-if-allowed! attic transaction bytes {:key-prefix            key-prefix
                                                                                :allowed-content-types allowed-content-types

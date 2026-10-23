@@ -213,7 +213,7 @@
                    (read-counter a "attic_files_stored_total")))))
 
         (testing "an object whose row was rolled back is found again, not written over"
-          (let [key (:file/key (try (cellar/run-in-transaction! pool {:read-only? false}
+          (let [key (:file/key (try (cellar/run-in-transaction! pool {:read-only? false :log nil}
                                                                 (fn [transaction]
                                                                   (let [row (attic/store-file! a transaction pdf {:key-prefix "invoices" :allowed-content-types #{"application/pdf"} :file-name nil})]
                                                                     (throw (ex-info "the caller's work failed" {:row row})))))
@@ -353,18 +353,18 @@
             (is (= (seq pdf) (seq (attic/read-file-bytes a key)))))
           (testing "a transaction is refused: a deleted object can't come back with a rollback"
             (is (= :attic/needs-a-pool
-                   (:type (ex-data (try (cellar/run-in-transaction! pool {:read-only? false} #(attic/delete-file! a % key))
+                   (:type (ex-data (try (cellar/run-in-transaction! pool {:read-only? false :log nil} #(attic/delete-file! a % key))
                                         (catch Exception e e)))))))
           (testing "kept for after the app's transaction: never after a rollback, deleted after a commit"
             (run-sql! pool (str "INSERT INTO orders VALUES (5, '" key "')"))
             (is (thrown? clojure.lang.ExceptionInfo
-                         (cellar/run-in-transaction! pool {:read-only? false}
+                         (cellar/run-in-transaction! pool {:read-only? false :log log}
                            (fn [transaction]
                              (cellar/run-statement! transaction (cellar/make-query-from-sql-text "test" "DELETE FROM orders WHERE order__id = 5") {})
                              (is (nil? (attic/delete-file-after-commit! a pool transaction key)))
                              (throw (ex-info "undo" {}))))))
             (is (some? (attic/find-file pool key)) "rolled back: the row and the file stay")
-            (cellar/run-in-transaction! pool {:read-only? false}
+            (cellar/run-in-transaction! pool {:read-only? false :log log}
               (fn [transaction]
                 (cellar/run-statement! transaction (cellar/make-query-from-sql-text "test" "DELETE FROM orders WHERE order__id = 5") {})
                 (attic/delete-file-after-commit! a pool transaction key)
