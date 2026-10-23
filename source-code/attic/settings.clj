@@ -98,7 +98,7 @@
    :key-prefix: the folder every uploaded file's key starts with.
    :allowed-content-types: what an uploaded file's bytes may be.
    :max-file-bytes: the largest file taken; a larger one is refused, the
-   others stored. The server's own body limit (mailroom's
+   others stored. The server's own body limit (bridge's
    :max-body-bytes) must leave room for it.
    :max-files: the most parts one request may carry; more refuse the
    request, 413, nothing stored."
