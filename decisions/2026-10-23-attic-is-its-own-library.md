@@ -1,5 +1,7 @@
 # attic is its own library
 
+> **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
+
 **Decision:** files an app keeps (a shop's photos, an invoice's PDF, a 3D model) are manor's library attic: a bucket on any S3 API (R2, S3), reached through cognitect's aws-api, every file named by its content and recorded in a table of attic's, links for the browser, and an upload route's handler. It is its own repository, `io.github.p4ulcristian/attic`, public, MIT, topic `manor`; house takes it from git and puts its settings, table and upload route in. One public namespace, `attic.api`. It needs cellar (the table, its queries), wire (the upload's answer), logbook and meter (handed in), ring-core (the multipart parser) and malli. Since v0.1.0.
 
 It is Iron Rainbow's file code made general: its R2 client and signed links, its catalog's content-named store and files table, its upload route and its kinds told by bytes. Nothing of Iron Rainbow's is in it: no bucket, label, domain or token.

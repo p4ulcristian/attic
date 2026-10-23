@@ -2,7 +2,7 @@
 
 One file per decision: `YYYY-MM-DD-what-we-decided.md`. The title is the decision. Each file says what we decided, why, and what we chose against. A decision changes by a new file; the old one says so at the top (`Replaced by` or `Changed in part by`), and nothing else in it is rewritten.
 
-attic is manor's file storage (manor: house and the libraries it puts together). All were decided as v0.1.0 was built, from Iron Rainbow's R2 and catalog file code and what it taught.
+attic is groundwork's file storage (groundwork: the libraries and the composer of the same name that puts them together). All were decided as v0.1.0 was built, from Iron Rainbow's R2 and catalog file code and what it taught.
 
 - [attic is its own library](2026-10-23-attic-is-its-own-library.md)
 - [A file is named by its content; an object is never written over](2026-10-23-a-file-is-named-by-its-content.md)

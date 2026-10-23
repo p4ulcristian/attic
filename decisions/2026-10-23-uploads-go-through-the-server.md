@@ -1,5 +1,7 @@
 # Uploads go through the server; the app says who may upload
 
+> **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
+
 **Decision:** an upload is a multipart POST to the app's server, one part per file, answered by `make-upload-handler`'s Ring handler; the browser never writes to the bucket. The handler:
 
 1. asks the app's `:may-upload?`, `(fn [request] true-or-false)`, **before reading the body**: no is 403, and nothing of the body is read;

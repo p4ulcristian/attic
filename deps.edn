@@ -1,4 +1,4 @@
-;; attic: manor's file storage. Files named by their content in an S3 bucket
+;; attic: groundwork's file storage. Files named by their content in an S3 bucket
 ;; (R2, S3, any S3 API), each recorded in a table; links for the browser,
 ;; public or signed; uploads through the server, checked by their bytes.
 ;; One tree: source-code/attic/.
