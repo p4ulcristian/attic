@@ -37,7 +37,9 @@
 
    Content-named, one file may be named by many rows of the app (two
    orders with the same PDF). A row names a file through a reference to
-   :file/key ({:references :file/key}); delete-file! deletes a file only
+   :file/key ({:references {:to :file/key :on-delete :refuse :on-update :refuse
+   :checked-at :statement}}: a delete of a named file is refused);
+   delete-file! deletes a file only
    when none does (Postgres's reference refuses the row's delete, which
    attic answers :still-named), its row and its object together. attic
    knows no owners: a file's prefix is the app's to choose, and
@@ -95,6 +97,8 @@
                [:file/content-type :string]
                [:file/stored-at    :time/instant {:default :now}]]
    :indexes   []
+   :uniques   []
+   :checks    []
    :references []
    :triggers   []
    :gates     nil

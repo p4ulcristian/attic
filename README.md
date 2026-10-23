@@ -48,7 +48,8 @@ namespace, `attic.api`.
                      :retries             {:max-retries 4 :first-wait-ms 500 :max-wait-ms 4000}}
                     {:log log :meter meter}))
 
-(cellar/migrate! pool (conj app-tables attic/files-table) changes migrate-options)
+(cellar/migrate! pool {:tables (conj app-tables attic/files-table) :extensions [] :functions [] :views []}
+                 changes migrate-options)
 
 ;; an order's invoice, in the transaction that saves the order
 (def invoice (attic/store-file! attic transaction pdf-bytes {:key-prefix            "invoices"

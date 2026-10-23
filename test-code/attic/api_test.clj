@@ -128,7 +128,7 @@
 
 (defn- make-tables-afresh! [pool]
   (cellar/run-statement! pool (cellar/make-query-from-sql-text "drop" "DROP SCHEMA IF EXISTS attic CASCADE; DROP SCHEMA IF EXISTS cellar CASCADE") {})
-  @(:slow-part (cellar/migrate! pool [attic/files-table] []
+  @(:slow-part (cellar/migrate! pool {:tables [attic/files-table] :extensions [] :functions [] :views []} []
                                 {:instant-part {:statement-timeout-ms 5000 :lock-timeout-ms 5000}
                                  :slow-part    {:statement-timeout-ms :none :lock-timeout-ms 5000}
                                  :log          (fn [_ _ _])})))
@@ -304,8 +304,11 @@
   "An app's table whose rows name a file, through a reference to :file/key."
   {:table      :orders
    :columns    [[:order/id :int {:primary-key? true}]
-                [:order/invoice-key :string {:references :file/key}]]
-   :indexes    [[:order/invoice-key]]
+                [:order/invoice-key :string {:references {:to :file/key :on-delete :refuse :on-update :refuse
+                                                          :checked-at :statement}}]]
+   :indexes    [{:columns [[:order/invoice-key :ascending :nulls-last]] :method :btree :ops {} :unique? false :where nil}]
+   :uniques    []
+   :checks     []
    :references []
    :triggers   []
    :gates      nil
@@ -322,7 +325,7 @@
       (try
         (run-sql! pool "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public")
         (make-tables-afresh! pool)
-        @(:slow-part (cellar/migrate! pool [attic/files-table orders] []
+        @(:slow-part (cellar/migrate! pool {:tables [attic/files-table orders] :extensions [] :functions [] :views []} []
                                       {:instant-part {:statement-timeout-ms 5000 :lock-timeout-ms 5000}
                                        :slow-part    {:statement-timeout-ms :none :lock-timeout-ms 5000}
                                        :log          (fn [_ _ _])}))
